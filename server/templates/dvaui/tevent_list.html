@@ -1,0 +1,104 @@
+{% extends "dvaui/base.html" %}
+{% load static from staticfiles %}
+{% block page_css %}
+{% endblock %}
+
+
+{% block page_content %}
+<section class="content-header" style="padding-top:0px" xmlns="http://www.w3.org/1999/html">
+<div class="row">
+    <div class="box box-info">
+        <div class="box-header">
+            <h2>List of Tasks, Operations & Queues</h2>
+            <h3>{{ header }}</h3>
+            {% if is_paginated %}
+                <div class="pagination text-center" style="width:100%">
+                    <span class="page-links">
+                        {% if page_obj.has_previous %}
+                            <a class="btn btn-info" style="float:left" href=".?page={{ page_obj.previous_page_number }}"><i class="fa fa-backward"></i>  Go back</a>
+                        {% endif %}
+                        <span class="page-current " style="font-size:24pt;font-weight:bold">
+                            {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}.
+                        </span>
+                        {% if page_obj.has_next %}
+                            <a class="btn btn-info" style="float:right" href=".?page={{ page_obj.next_page_number }}">Load more  <i class="fa fa-forward"></i></a>
+                        {% endif %}
+                    </span>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+</section>
+<section class="content">
+<div class="row">
+    <div class="col-lg-12">
+        <div class="box">
+            <div class="box-header with-border">
+                <h3>Tasks</h3>
+            </div>
+            <div class="box-body">
+                <form method="post">
+                {% csrf_token %}
+                <table class="table dataTables">
+                    <thead>
+                    <tr>
+                        <th>Process</th>
+                        <th>Video</th>
+                        <th>Operation</th>
+                        <th>Queue</th>
+                        <th>created</th>
+                        <th>started</th>
+                        <th>created ts</th>
+                        <th>started ts</th>
+                        <th>duration</th>
+                        <th class="text-center">status and details</th>
+                        <th class="text-center">retry task</th>
+                        <th class="text-center">mark as failed</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for e in object_list %}
+                        <tr>
+                            <td><a href="/process/{{ e.parent_process_id }}">{{ e.parent_process_id }}</a></td>
+                            <td>{% if e.video %}<a href="/videos/{{ e.video_id }}">{{ e.video.name }}</a>{% endif %}</td>
+                            <td>{{ e.operation }}</td>
+                            <td>{{ e.queue }}</td>
+                            <td class="text-center">{{ e.created|timesince}}</td>
+                            <td class="text-center">{{ e.start_ts|timesince}}</td>
+                            <td class="text-center">{{ e.created|date:"U" }}</td>
+                            <td class="text-center">{{ e.start_ts|date:"U" }}</td>
+                            <td class="text-right">{{ e.duration|floatformat }}</td>
+                            <td>
+                                {% if e.errored %}
+                                    <a href="/task_detail/{{ e.pk }}" class="btn btn-danger btn-block">{% if e.imported %}Imported{% endif %} Failed</a>
+                                {% elif e.duration < 0 and not e.started %}
+                                    <a href="/task_detail/{{ e.pk }}" class="btn btn-warning btn-block">{% if e.imported %}Imported{% endif %} Pending</a>
+                                {% elif e.duration < 0 and e.started and not e.completed%}
+                                    <a href="/task_detail/{{ e.pk }}" class="btn btn-primary btn-block">{% if e.imported %}Imported{% endif %} Running</a>
+                                {% elif e.completed%}
+                                    <a href="/task_detail/{{ e.pk }}" class="btn btn-success btn-block">{% if e.imported %}Imported{% endif %} Completed</a>
+                                {% else %}
+                                    <a href="/task_detail/{{ e.pk }}" class="btn btn-info btn-block">Unknown</a>
+                                {% endif %}
+                            </td>
+                            <td class="text-center"><button class="btn btn-warning" name="pk" formaction="/retry/" type="submit" value="{{ e.pk }}">Retry</button></td>
+                            <td class="text-center"><button class="btn btn-warning" name="pk" formaction="/failed/"  type="submit" value="{{ e.pk }}" >Mark as failed</button></td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+</section>
+{% endblock %}
+{% block page_js%}
+<script>
+    $(document).ready(function() {
+        InitializeTables();
+    })
+</script>
+{% endblock %}

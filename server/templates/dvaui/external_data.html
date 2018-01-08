@@ -1,0 +1,81 @@
+{% extends "dvaui/base.html" %}
+{% load staticfiles %}
+{% block page_css %}
+{% endblock %}
+{% block page_content %}
+<section class="content-header" style="padding-top:0px" xmlns="http://www.w3.org/1999/html">
+<div class="row">
+    <div class="box box-info">
+        <div class="box-header">
+            <h2>List of configured external servers, datasets, models & scripts</h2>
+        </div>
+    </div>
+</div>
+</section>
+<section class="content">
+    <div class="row">
+        <div class="col-lg-offset-2 col-lg-8 col-md-12">
+            <div class="box box-primary">
+                    <div class="box-body">
+                    <table class="table table-bordered" width="100%">
+                        <thead>
+                        <tr>
+                            <th>Folder name</th>
+                            <th>Git repo URL</th>
+                            <th>Pull</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                            {% for server in servers %}
+                                <tr>
+                                    <td>{{ server.name }}</td>
+                                    <td><a target="_blank" href="{{ server.url }}" >{{ server.url }}</a></td>
+                                    <td class="text-center"><form action="/pull_external" method="post">{% csrf_token %}<input type="hidden" name="server_pk" value="{{ server.pk }}"/><button type="submit" class="btn btn-primary"> Load / Refresh </button></form></td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    </div>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="box box-primary">
+                <div class="box-header with-border">
+                    <h4>Available models, datasets and tempaltes</h4>
+                </div>
+            <div class="box-body">
+                <table class="table dataTables" width="100%">
+                    <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Server</th>
+                        <th>Description</th>
+                        <th>Run script</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                        {% for s in scripts %}
+                            <tr>
+                                <td>{{ s.name }}</td>
+                                <td><a target="_blank" href="{{ s.server.url }}">{{ s.server.name }}</a></td>
+                                <td>{{ s.description }}</td>
+                                <td><a href={% url 'stored_process_detail' s.pk %}>Edit & Run</a></td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+{% block page_js%}
+<script>
+    $(document).ready(function() {
+        InitializeTables();
+    })
+</script>
+{% endblock %}

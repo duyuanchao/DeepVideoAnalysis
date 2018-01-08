@@ -1,0 +1,191 @@
+{% extends "dvaui/base.html" %}
+{% load staticfiles %}
+{% block ng_control %}ng-controller="CanvasControls"{% endblock %}
+{% block page_css %}
+    <link rel="stylesheet" href={% static 'app/app.css' %}>
+    <link rel="stylesheet" href={% static 'jsoneditor/jsoneditor.min.css' %}>
+    <style>
+    .canvas-container { margin:0 auto ;  }
+    </style>
+{% endblock %}
+{% block status_bar %}
+<div id="status" ng-model="status" ng-show="checkStatus()" class="alert alert-dismissable" ng-class="alert_status ? 'alert-warning' : 'alert-info'"><h4 class="h4status">{[ status ]}</h4>
+<button type="button" class="close" ng-click="disableStatus()" aria-hidden="true">x</button>
+</div>
+{% endblock %}
+{% block page_content %}
+<section class="content-header" style="padding-top:0px" xmlns="http://www.w3.org/1999/html">
+<div class="row">
+    <div class="box box-info">
+        <div class="box-header text-center" >
+            {% if frame %}
+            <h4>Annotate frame <a href="/frames/{{ frame.pk }}">{{ frame.frame_index }}</a> in <a href="/videos/{{ frame.video.pk }}">{{ frame.video.name }}</a> </h4>
+            {% if previous_frame %}<a style="display: inline-block;margin-right:15px" href="/annotate_frame/{{ previous_frame.0.pk }}" class="btn btn-success"><i class="fa fa-backward "></i> Previous</a> {% endif %}
+            <a style="display: inline-block;margin-right:15px" href="/query_frame/{{ frame.pk }}/" class="btn btn-info"><i class="fa fa-search"></i> Query using this frame</a>
+            <a style="display: inline-block;margin-right:15px" type='button' class="btn btn-info" id='btnLoad' ng-click='add_bounding_box();'><i class="fa fa-square"></i>&nbsp;Add bounding box annotation</a>
+            {% if next_frame %}<a style="display: inline-block;margin-right:15px" href="/annotate_frame/{{ next_frame.0.pk }}" class="btn btn-success"><i class="fa fa-forward"></i> Next</a>{% endif %}
+            {% endif %}
+    </div>
+    </div>
+</div>
+<div  style="margin-left:auto;margin-right:auto;width:1100px;" class="text-center">
+    <div class="row m-t" style="width:1100px;margin: 10px auto;">
+    <div ng-repeat="box in boxes" class="col-lg-12" >
+        <div class="box box-error">
+            <div class="box-body">
+                    <div class="row">
+                        <div class="col-xs-1">
+                            <div class="form-group">
+                                <label for="top">top</label>
+                                <input name="top" class="form-control" type="text" required="" placeholder="top" value="{[ box.top]}" disabled="disabled" >
+                            </div>
+                            <div class="form-group">
+                                <label for="left">left</label>
+                                <input name="left" class="form-control" type="text" required="" placeholder="top" value="{[ box.left]}" disabled="disabled" >
+                            </div>
+                        </div>
+                        <div class="col-xs-1">
+                            <div class="form-group">
+                                <label for="height">height</label>
+                                <input name="height" class="form-control" type="text" required="" placeholder="top" value="{[ box.height*box.scaleY ]}" disabled="disabled" >
+                            </div>
+                            <div class="form-group">
+                                <label for="width">width</label>
+                                <input name="width" class="form-control" type="text" required="" placeholder="top" value="{[ box.width*box.scaleX ]}" disabled="disabled" >
+                            </div>
+                        </div>
+                        <div class="col-xs-5">
+                            <div class="form-group">
+                                <label for="top">Text metadata (indexed for full text search)</label>
+                                <textarea name="text" id="{[ box.id ]}_text" class="form-control" rows="1" required="" placeholder="text" ></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="top">JSON metadata</label>
+                                <textarea name="metadata" id="{[ box.id ]}_metadata" class="form-control" rows="1" required="" placeholder="metadata" ></textarea>
+                            </div>
+                        </div>
+                        <div class="col-xs-5">
+                            <div class="form-group">
+                                <label for="name" style="font-weight:bold">Name</label>
+                                <input name="name" class="form-control" value="UI_annotation"  id="{[ box.id ]}_object_name" required="required" />
+                            </div>
+                            <div class="form-group">
+                                <label for="labels" style="font-weight:bold">Assign labels :</label>
+                                <textarea name="labels" class="form-control" placeholder="specify multiple by seperating with a comma"  rows="1" id="{[ box.id ]}_tags" ></textarea>
+                            </div>
+                            <div style="margin-top:26px">
+                                <button ng-click="submit_annotation(box.id)" id="{[ box.id ]}_submit" class="btn btn-primary btn-block">submit</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+        <div style="height:50px;margin-bottom:5px;margin-top:5px">
+            <div> Use mousewheel or touchpad to zoom-in/out/pan</div>
+            <span ng-show="canvas.getActiveObject()">
+                <button id="send-backwards" class="btn btn-info  btn-object-action " ng-click="sendBackwards()"><i class="fa fa-step-backward"></i>&nbsp;&nbsp;Move back</button>
+                <button id="bring-forward" class="btn btn-info  btn-object-action "  ng-click="bringForward()"><i class="fa fa-step-forward"></i>&nbsp;&nbsp;Move forward</button>
+                <button id="send-to-back" class="btn btn-info  btn-object-action "  ng-click="sendToBack()"><i class="fa fa-backward"></i>&nbsp;&nbsp;Send to back</button>
+                <button id="bring-to-front" class="btn btn-info  btn-object-action "  ng-click="bringToFront()"><i class="fa fa-forward"></i>&nbsp;&nbsp;Bring to front</button>
+                <span style="display:inline-block" id="color-opacity-controls" ng-show="canvas.getActiveObject()">
+                    <h5 style="text-align: center;display:inline-block">Opacity</h5>
+                    <input value="100" type="range" bind-value-to="opacity" style="margin: 0 0 0 0;width:100px">
+                </span>
+                <button type="button" class="btn  btn-object-action bg-yellow " id="deselect" ng-click="deselect()"><i class="fa fa-minus"></i>&nbsp;&nbsp;Deselect</button>
+            </span>
+            <span ng-show="canvas.getActiveGroup()">
+                <button type="button" class="btn  btn-danger btn-object-action bg-maroon " id="remove-selected-group" ng-click="removeSelected()"><i class="fa fa-trash"></i>&nbsp;&nbsp;Delete</button>
+                <button type="button" class="btn  btn-object-action " id="deselect_group" ng-click="deselect()"><i class="fa fa-minus"></i>&nbsp;&nbsp;Deselect</button>
+            </span>
+            <button type="button" class="btn btn-info pull-right"  id="reset_zoom" ng-click="resetZoom()"><i class="fa fa-refresh"></i>&nbsp;Reset Zoom</button>
+        </div>
+        <div style="margin-bottom:10px">
+
+
+        </div>
+    </div>
+
+</section>
+<section class="content">
+<div class="row large-margin">
+    <div class="col-lg-12" style="text-align:center">
+        <div id="canvas-wrapper" style="margin-left:auto;margin-right:auto">
+            <canvas id="canvas" height="600px" width="1100px"></canvas>
+        </div>
+
+    </div>
+</div>
+<div class="row">
+        <div style="margin-left:auto;margin-right:auto;width:1100px;">
+        <div class="box box-info">
+        <div class="box-header text-center">
+            <h3>Existing annotations and detections (refresh the page to reload new annotations)</h3>
+            <h4> Show /Hide all <input type="checkbox" ng-checked="{[ visible_all ]}" ng-click="toggle_all()"></h4>
+        </div>
+        <div class="box-body text-center" >
+        <table class="table table-bordered">
+        <thead><tr>
+            <th>type</th>
+            <th>label / name</th>
+            <th>top</th>
+            <th>left</th>
+            <th>height</th>
+            <th>width</th>
+            <th>full frame</th>
+            <th>visible</th>
+            <th>delete</th>
+        </tr></thead>
+        <tbody>
+        <tr ng-repeat="box in existing_boxes" >
+            <td>{[ box.box_type]}</td>
+            <td>{[ box.label]}</td>
+            <td class="text-right">{[ box.top]}</td>
+            <td class="text-right">{[ box.left]}</td>
+            <td class="text-right">{[ box.height*box.scaleY ]}</td>
+            <td class="text-right">{[ box.width*box.scaleX ]}</td>
+            <td class="text-center">{[ box.full_frame ]}</td>
+            <td class="text-center"><input type="checkbox" ng-model="box.visible" ng-click="toggle_visibility(box.id)"></td>
+            <td class="text-center"><a ng-show="{[ box.annotation ]}" class="btn btn-warning" ng-click="delete_object(box.id,box.pk,box.box_type)"><i class="fa fa-trash"></i> Delete</a></td>
+        </tr>
+        </tbody>
+        </table>
+        </div>
+    </div>
+    </div>
+</div>
+</section>
+{% endblock %}
+
+
+{% block page_js %}
+    <script src={% static 'jsoneditor/jsoneditor.min.js' %}></script>
+    <script>
+        var status = "Please add bounding box to annotate.";
+        var payload = "{{ payload }}";
+        var existing = JSON.parse('{{ existing|safe }}');
+        var csrf_token = "{% csrf_token %}";
+        var alert_status = "add bounding box";
+        var annotation_mode = true;
+        {% if initial_url %}
+            var initial_url="{{ initial_url }}";
+        {% else %}
+            var initial_url=null;
+        {% endif %}
+    </script>
+    <script src={% static 'plugins/jquery.mousewheel.min.js' %}></script>
+    <script src={% static 'plugins/underscore-min.js' %}></script>
+    <script src={% static 'fabric/fabric.js' %}></script>
+    <script type="text/javascript" src={% static 'vision/jsfeat-min.js' %}></script>
+    <script type="text/javascript" src={% static 'vision/slic-segmentation.js' %}></script>
+    <script type="text/javascript" src={% static 'vision/pf-segmentation.js' %}></script>
+    <script type="text/javascript" src={% static 'vision/compatibility.js' %}></script>
+    <script type="text/javascript" src={% static 'vision/dat.gui.min.js' %}></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.5/angular.min.js"></script>
+    <script src={% static 'app/utils.js' %}></script>
+    <script src={% static 'app/app_config.js' %}></script>
+    <script src={% static 'app/controller.js' %}></script>
+    <script src={% static 'app/app.js' %}></script>
+{% endblock %}
+{% block ngblock %}ng-app="cveditor"{% endblock %}

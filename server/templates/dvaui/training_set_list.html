@@ -1,0 +1,24 @@
+{% extends "dvaui/base.html" %}
+{% load staticfiles %}
+{% block page_content %}
+<section class="content-header" style="padding-top:0px" xmlns="http://www.w3.org/1999/html">
+<div class="row">
+    <div class="box box-info">
+        <div class="box-header">
+            <h2>Training Sets
+                <a href="/stored_process#shortcuts" class="btn btn-success" style="float: right"><i class="fa fa-plus-square"></i> Create training set</a>
+            </h2>
+        </div>
+    </div>
+</div>
+</section>
+<section class="content">
+</section>
+{% endblock %}
+{% block page_js%}
+<script>
+    $(document).ready(function() {
+        InitializeTables();
+    })
+</script>
+{% endblock %}

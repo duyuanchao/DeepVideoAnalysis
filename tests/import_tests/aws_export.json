@@ -1,0 +1,20 @@
+{
+  "process_type": "V",
+  "create": [
+    {
+      "MODEL": "Video",
+      "spec": {
+        "name": "aws_export"
+      },
+      "tasks": [
+        {
+          "operation": "perform_import",
+          "video_id": "__pk__",
+          "arguments": {
+            "path": "s3://visualdatanetwork/coco_sample.dva_export.zip"
+          }
+        }
+      ]
+    }
+  ]
+}

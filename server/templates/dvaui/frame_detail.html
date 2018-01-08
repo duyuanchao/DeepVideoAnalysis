@@ -1,0 +1,253 @@
+{% extends "dvaui/base.html" %}
+{% load staticfiles %}
+{% block page_content %}
+<section class="content-header" style="padding-top:0px" xmlns="http://www.w3.org/1999/html">
+<div class="row">
+    <div class="box box-info">
+        <div class="box-header">
+            <h4>Details for <a href="/videos/{{ object.video_id }}">{{ object.video.name }}</a>
+                {% if object.video.dataset %} file named: {{ object.name }} in directory {{ object.subdir }} {% else %} at {{ object.frame_index }}
+                <a href="/segments/by_index/{{ object.video_id }}/{{ object.segment_index }}"> in Segment {{ object.segment_index }} </a>
+                {% endif %}
+            </h4>
+        </div>
+    </div>
+</div>
+</section>
+<section class="content">
+<div class="row">
+    <div class="col-lg-6">
+        <div class="box box-primary">
+        <div class="box-header with-borders text-center">
+            {% if previous_frame %}<a href="/frames/{{ previous_frame.0.pk }}" class="btn btn-success pull-left"><i class="fa fa-backward "></i> Previous</a> {% endif %}
+
+            <a href="/query_frame/{{ object.pk }}/" class="btn btn-info"><i class="fa fa-search"></i> Query using this frame</a>
+            {% if next_frame %}<a href="/frames/{{ next_frame.0.pk }}" class="btn btn-success pull-right"><i class="fa fa-forward"></i> Next</a>{% endif %}
+        </div>
+        <div class="box-body">
+            <img src="{{ url }}" style="width:100%" />
+        </div>
+        <div class="box-footer">
+            <div class="text-center"><a href="/annotate_frame/{{ object.pk }}/" class="btn btn-warning"><i class="fa fa-edit"></i> Add & edit annotations for bouding box</a></div>
+            <h4 class="text-center" style="margin-top:15px"> Or assign metadata & labels to entire frame/image below</h4>
+            <form action="/annotate_entire_frame/{{ object.pk }}/" method="post">
+                <div class="row">
+                <div class="col-sm-6"><div class="form-group">
+                    <label for="metadat_json">Metadata Text</label>
+                    <textarea class="form-control" rows="2" placeholder="text" name="text"></textarea>
+                </div></div>
+                <div class="col-sm-6"><div class="form-group">
+                    <label for="metadat_json">Metadata JSON</label>
+                    <textarea class="form-control" rows="2" placeholder="metadata" name="metadata"></textarea>
+                </div></div>
+                <div class="col-sm-12">
+                    <label style="font-weight:bold">Name</label>
+                    <input type="text" class="form-control" placeholder="optional otherwise frame_metadata is used" name="object_name" id="object_name" />
+                    <label style="font-weight:bold">Assign tags/labels</label>
+                    <textarea class="form-control" name="tags" id="tags" rows="2" placeholder="you can seperate multiple labels using a comma" style="width:100%"></textarea>
+                </div>
+                <div class="col-sm-4 col-sm-offset-4" style="margin-top:15px">
+                    <div class="form-group">
+                        {% csrf_token %}
+                        <input type="hidden" name="x" value="0" />
+                        <input type="hidden" name="y" value="0" />
+                        <input type="hidden" name="h" value="0" />
+                        <input type="hidden" name="w" value="0" />
+                        <input type="hidden" name="high_level" value="true" />
+                        <div class="text-center"><button id="submit" class="btn btn-primary form-control">Submit</button></div>
+                    </div>
+                </div>
+                </div>
+            </form>
+        </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="box box-primary">
+            <div class="box-header"><h4> Annotations for entire frame / image</h4></div>
+            <div class="box-body">
+                {% if annotation_list %}
+                <table class="table">
+                <thead>
+                <tr>
+                        <th>Annotation</th>
+                        <th>User</th>
+                        <th>Metadata</th>
+                        <th>Delete</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for d in annotation_list %}
+                    {% if d.full_frame %}
+                    <tr>
+                        <td>{{ d.object_name }} </td>
+                        <td>{{ d.user }} </td>
+                        <td class="text-center"><button type="button" class="btn btn-primary" data-toggle="modal" data-target="#{{ d.pk }}">view metadata</button></td>
+                        <td class="text-center"><button type="button" class="btn btn-danger" onclick="delete_annotation({{ d.pk }})" ><i class="fa fa-trash"></i> delete</button></td>
+                    </tr>
+                    {% endif %}
+                {% endfor %}
+                </tbody>
+                </table>
+                {% endif %}
+            </div>
+            <div class="box-footer">
+            </div>
+        </div>
+        <div class="box box-primary">
+            <div class="box-header"><h4>Annotations for bounding boxes</h4></div>
+            <div class="box-body">
+                {% if annotation_list %}
+                <table class="table">
+                <thead>
+                <tr>
+                        <th>Annotation</th>
+                        <th>User</th>
+                        <th>x</th>
+                        <th>y</th>
+                        <th>w</th>
+                        <th>h</th>
+                        <th>metadata</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for d in annotation_list %}
+                    {% if not d.full_frame %}
+                    <tr>
+                        <td>{{ d.object_name }} </td>
+                        <td>{{ d.user }} </td>
+                        <td>{{ d.x }} </td>
+                        <td>{{ d.y }} </td>
+                        <td>{{ d.w }} </td>
+                        <td>{{ d.h }} </td>
+                        <td class="text-center"><button type="button" class="btn btn-primary" data-toggle="modal" data-target="#{{ d.pk }}">view metadata</button></td>
+                    </tr>
+                    {% endif %}
+                {% endfor %}
+                </tbody>
+                </table>
+                {% endif %}
+                </div>
+            </div>
+            <div class="box box-primary">
+            <div class="box-header"><h4>Detections</h4></div>
+            <div class="box-body">
+                <table class="table">
+                <thead>
+                <tr>
+                        <th>object</th>
+                        <th>confidence</th>
+                        <th>x</th>
+                        <th>y</th>
+                        <th>w</th>
+                        <th>h</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for d in detection_list %}
+                    <tr>
+                        <td>{{ d.object_name }} </td>
+                        <td>{{ d.confidence|floatformat }} </td>
+                        <td>{{ d.x }} </td>
+                        <td>{{ d.y }} </td>
+                        <td>{{ d.w }} </td>
+                        <td>{{ d.h }} </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="row">
+    <div class="box box-primary">
+        <div class="box-header">
+            <h3>Detected objects:</h3>
+        </div>
+    </div>
+    <div class="row">
+    {% for d in detection_list %}
+    <div class="col-sm-3">
+    <div class="box box-primary">
+        <div class="box-header">
+            <h4>{{ d.object_name }}</h4>
+        </div>
+        <div class="box-body text-center">
+            {% if d.materialized %}
+                <img class="img-responsive" src="{{ MEDIA_URL }}{{ object.video_id }}/regions/{{ d.pk }}.jpg" style="margin-left:auto;margin-right: auto">
+            {% else %}
+                <div style="width: {{ d.w }}px; height: {{ d.h }}px; position: relative;overflow:hidden;margin: auto;">
+                    <img src="{{ url }}" id="image" style="position: absolute; top: -{{ d.y }}px; left: -{{ d.x }}px" />
+                </div>
+            {% endif %}
+        </div>
+        <div class="box-footer text-center">
+            <h5>Confidence: {{ d.confidence|floatformat }}</h5>
+            <a href="/query_detection/{{ d.pk }}/" class="btn btn-info"><i class="fa fa-search"></i> Query using this detection</a>
+        </div>
+    </div>
+    </div>
+    {% if forloop.counter|divisibleby:"4" or forloop.last %}
+        </div> <div class="row">
+    {% endif %}
+    {% if  forloop.last %}
+        </div>
+    {% endif %}
+    {% endfor %}
+</div>
+</section>
+{% for k in annotation_list %}
+ <div class="modal fade" id="{{ k.pk }}" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title" id="myModalLabel">Annotation : {{ k.object_name }}</h4>
+      </div>
+      <div class="modal-body">
+        <h4 class="text-center">Text metadata</h4>
+        <textarea rows="10" style="width:100%;">{{ k.text }}</textarea>
+        <h4 class="text-center">JSON metadata</h4>
+        <textarea rows="10" style="width:100%;">{{ k.metadata }}</textarea>
+        {% if not k.full_frame %}
+        <h4 class="text-center" style="margin-bottom:15px;margin-top:20px">Bounding box</h4>
+        <div style="width: {{ k.w }}px; height: {{ k.h }}px; position: relative;overflow:hidden;margin: auto;">
+          <img src="{{ url }}" id="image" style="position: absolute; top: -{{ k.y }}px; left: -{{ k.x }}px" />
+        </div>
+        {% endif %}
+      </div>
+      <div class="modal-footer">
+       <button type="button" class="btn btn-danger pull-left" onclick="delete_annotation({{ k.pk }})" ><i class="fa fa-trash"></i> delete</button>
+        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endfor %}
+{% endblock %}
+{% block page_js%}
+<script>
+    var csrf_token = "{% csrf_token %}";
+    var delete_annotation = function(pk)
+    {
+        if (confirm("delete annotation for entire frame"))
+        {
+            $.ajax({
+                url: '/delete/',
+                data:{
+                  'csrfmiddlewaretoken':$(csrf_token).val(),
+                  'pk':pk,
+                  'object_type':'annotation'},
+                type: 'POST',
+                success: function(result) {
+                      window.location.reload();
+                }
+            });
+        }
+    };
+    $(document).ready(function() {
+        InitializeTables();
+    })
+</script>
+{% endblock %}
